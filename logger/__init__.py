@@ -18,7 +18,7 @@ def config_logger():
 
     # create formatter and add it to the handlers
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        '%(asctime)s - %(name)-8s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 

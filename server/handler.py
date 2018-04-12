@@ -1,8 +1,10 @@
-import BaseHTTPServer
-import threading
 import logger
+import threading
+import BaseHTTPServer
+# import manifest_packager.manager
+from manifest_packager.manager import ManifestPackagingManager
 
-LOG = logger.get_logger('server')
+LOG = logger.get_logger(__name__)
 
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -11,10 +13,17 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         LOG.info(_format % args)
 
     def do_GET(self):
-        LOG.info('received GET')
-        self.send_response(200)
+
+        mpm = ManifestPackagingManager()
+        status_code, headers, body = mpm.handle_request(
+            self.path, self.headers)
+
+        self.send_response(status_code)
         self.end_headers()
         message = threading.currentThread().getName()
-        self.wfile.write(message)
+        if body is not None:
+            self.wfile.write(body)
+        else:
+            self.wfile.write(message)
         self.wfile.write('\n')
         return
