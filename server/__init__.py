@@ -5,6 +5,7 @@ from handler import RequestHandler
 from SocketServer import ThreadingMixIn
 
 LOG = logger.get_logger('server')
+print(__name__)
 
 
 class ThreadedHTTPServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
