@@ -1,4 +1,4 @@
-.pyc
-.log
-.sublime-project
-.sublime-workspace
+*.pyc
+*.log
+*.sublime-project
+*.sublime-workspace
