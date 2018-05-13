@@ -1,9 +1,10 @@
-
+import os
 import logging
 
 
 def config_logger():
 
+    os.environ['TZ'] = 'UTC'
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
@@ -18,7 +19,7 @@ def config_logger():
 
     # create formatter and add it to the handlers
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)-8s - %(levelname)s - %(message)s')
+        '%(asctime)s - [%(threadName)-12.12s] -  %(name)-4s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 

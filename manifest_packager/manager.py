@@ -3,14 +3,16 @@ import m3u8
 import logger
 from fetcher import Fetcher
 from fetcher import FetchError
+from pre_processor import PreProcessor
 
 
 LOG = logger.get_logger(__name__)
 
-DASH_URI_PATTERN = '/dash/live-packaging/(?P<stream_id>[-\w]+)/(?P<event_id>[-\w/]+)/(?P<file_name>[-\w]+).mpd'
+DASH_URI_PATTERN = '/dash-package/live/(?P<stream_id>[-\w]+)/(?P<event_id>[-\w/]+)/(?P<extension>[-\w/]+)/(?P<file_name>[-\w]+).mpd'
 
 class PackagingError(Exception):
     pass
+
 
 class ManifestPackagingManager:
 
@@ -18,14 +20,18 @@ class ManifestPackagingManager:
         m = re.match(DASH_URI_PATTERN, path)
 
         if m is None:
+            LOG.warning('invalid uri %s', path)
             raise KeyError('invalid manifest path %s', path)
 
         self.stream_id = m.group('stream_id')
         self.event_id = m.group('event_id')
         self.filename = m.group('file_name')
+        self.extension = m.group('extension')
 
-        LOG.info('stream id: %s event id: %s filename: %s',
-                 self.stream_id, self.event_id, self.filename)
+        self.pre_processor = PreProcessor()
+
+        LOG.info('stream id: %s event id: %s filename: %s extension: %s',
+                 self.stream_id, self.event_id, self.filename, self.extension)
 
     def handle_request(self, path, headers):
 
@@ -35,32 +41,30 @@ class ManifestPackagingManager:
             LOG.warning(e.message)
             return (404, None, None)
 
+        self.base_uri = 'http://l2voddemo.akamaized.net/hls/live/%s/%s' % (
+            self.stream_id, self.event_id)
 
-        # fetch the master
-        status_code, headers, content = Fetcher()
+        master_manifest_url = '%s/%s.%s' % (self.base_uri,
+                                            self.filename,
+                                            self.extension)
+        master_playlist = m3u8.loads(
+            Fetcher().fetch(master_manifest_url))
+        LOG.debug('master media %s', master_playlist.media)
+
+        # Fetch the media playlist and process them
+        playlists = {}
+        for playlist in master_playlist.playlists:
+            LOG.debug('playlist uri %s base_uri %s',
+                      playlist.uri, playlist.base_uri)
+
+            playlists[playlist.uri] = m3u8.loads(
+                Fetcher().fetch(
+                    '%s/%s' % (self.base_uri,
+                               playlist.uri)))
+
+            # Preprocess the Playlist if not done before
+            PreProcessor().get_preprocessed_mpd(
+                self.stream_id, self.event_id,
+                self.base_uri, playlists[playlist.uri])
 
         return (200, None, '%s %s %s' % (self.stream_id, self.event_id, self.filename))
-
-
-    def fetch_playlists(self):
-
-        master_playlist_content = self.fetch_master_playlist()
-
-        self.master = m3u8.loads(master_playlist_content)
-        # This should actually be is master
-        if not self.master.is_variant:
-
-
-
-
-
-
-
-
-
-    def fetch_master_playlist(self):
-
-        path = '/hls/live/{}/{}/{}.m3u8'.format(
-            self.stream_id, self.event_id, self.filename)
-
-        return Fetcher(path, self)

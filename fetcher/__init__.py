@@ -10,23 +10,26 @@ class FetchError(Exception):
 
 class Fetcher:
 
-    def __init__(self, url, requester):
-        self.url = url
-        self.requester = requester
+    def __init__(self):
+        return
 
-    def fetch(self):
-        r = requests.get(self.url)
+    def fetch(self, url):
+
+        return self.send_request(url)
+
+    def fetch_and_write(self, url, write_file):
+        content = self.send_request(url)
+        with open(write_file, 'w') as fd:
+            fd.write(content)
+        LOG.debug('written %d bytes to %s',
+                  len(content), write_file)
+        return
+
+    def send_request(self, url):
+        r = requests.get(url)
         if r.status_code != 200:
             LOG.info('%s fetch failed. status_code %d %s %s',
                      r.url, r.status_code, r.headers, r.content)
             raise FetchError('%s fetch failed. status_code %d %s %s' %
                              (r.url, r.status_code, r.headers, r.content))
-        else:
-            LOG.info('%s fetch success. status_code %d %s %s',
-                     r.url, r.status_code, r.headers, r.content)
-
         return r.content
-        # self.requester.handle_response(self.requester,
-        #                                r.status_code,
-        #                                r.headers,
-        #                                r.content)
