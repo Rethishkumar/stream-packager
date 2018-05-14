@@ -8,7 +8,7 @@ from pre_processor import PreProcessor
 
 LOG = logger.get_logger(__name__)
 
-DASH_URI_PATTERN = '/dash-package/live/(?P<stream_id>[-\w]+)/(?P<event_id>[-\w/]+)/(?P<extension>[-\w/]+)/(?P<file_name>[-\w]+).mpd'
+DASH_URI_PATTERN = '/dash-package/live/(?P<stream_id>[-\w]+)/(?P<event_id>[-\w/]+)/(?P<extension>[-\w/]+)/(?P<filename>[-\w]+).mpd'
 
 class PackagingError(Exception):
     pass
@@ -16,37 +16,40 @@ class PackagingError(Exception):
 
 class ManifestPackagingManager:
 
-    def extract_path_info(self, path):
+    def __init__(self):
+        self.preprocessor = PreProcessor()
+        pass
+
+    def resolve_path(self, path):
         m = re.match(DASH_URI_PATTERN, path)
 
         if m is None:
             LOG.warning('invalid uri %s', path)
             raise KeyError('invalid manifest path %s', path)
 
-        self.stream_id = m.group('stream_id')
-        self.event_id = m.group('event_id')
-        self.filename = m.group('file_name')
-        self.extension = m.group('extension')
-
-        self.pre_processor = PreProcessor()
+        stream_id = m.group('stream_id')
+        event_id = m.group('event_id')
+        filename = m.group('filename')
+        extension = m.group('extension')
 
         LOG.info('stream id: %s event id: %s filename: %s extension: %s',
-                 self.stream_id, self.event_id, self.filename, self.extension)
+                 stream_id, event_id, filename, extension)
+        return (stream_id, event_id, filename, extension)
 
     def handle_request(self, path, headers):
 
         try:
-            self.extract_path_info(path)
+            stream_id, event_id, filename, extension = self.resolve_path(path)
         except KeyError as e:
             LOG.warning(e.message)
             return (404, None, None)
 
-        self.base_uri = 'http://l2voddemo.akamaized.net/hls/live/%s/%s' % (
-            self.stream_id, self.event_id)
+        base_uri = 'http://l2voddemo.akamaized.net/hls/live/%s/%s' % (
+            stream_id, event_id)
 
-        master_manifest_url = '%s/%s.%s' % (self.base_uri,
-                                            self.filename,
-                                            self.extension)
+        master_manifest_url = '%s/%s.%s' % (base_uri,
+                                            filename,
+                                            extension)
         master_playlist = m3u8.loads(
             Fetcher().fetch(master_manifest_url))
         LOG.debug('master media %s', master_playlist.media)
@@ -54,17 +57,27 @@ class ManifestPackagingManager:
         # Fetch the media playlist and process them
         playlists = {}
         for playlist in master_playlist.playlists:
-            LOG.debug('playlist uri %s base_uri %s',
-                      playlist.uri, playlist.base_uri)
+            LOG.debug('playlist uri %s',
+                      playlist.uri)
 
             playlists[playlist.uri] = m3u8.loads(
                 Fetcher().fetch(
-                    '%s/%s' % (self.base_uri,
+                    '%s/%s' % (base_uri,
                                playlist.uri)))
 
-            # Preprocess the Playlist if not done before
-            PreProcessor().get_preprocessed_mpd(
-                self.stream_id, self.event_id,
-                self.base_uri, playlists[playlist.uri])
+            playlists[playlist.uri].uri = playlist.uri
 
-        return (200, None, '%s %s %s' % (self.stream_id, self.event_id, self.filename))
+            # Preprocess the Playlist if not done before
+            self.preprocessor.preprocess_playlist(
+                stream_id, event_id,
+                base_uri,
+                playlists[playlist.uri])
+
+        return (200, None, '%s %s %s' % (stream_id, event_id, filename))
+
+
+
+
+
+
+

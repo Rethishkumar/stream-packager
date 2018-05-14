@@ -5,29 +5,22 @@ import logging
 def config_logger():
 
     os.environ['TZ'] = 'UTC'
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    # create file handler which logs even debug messages
+    logFormatter = logging.Formatter(
+        '%(asctime)s::%(thread)d::%(name)-4s::%(levelname)s::%(message)s')
+    rootLogger = logging.getLogger()
     logging.basicConfig(level=logging.DEBUG)
-    fh = logging.FileHandler('packager.log')
-    fh.setLevel(logging.DEBUG)
 
-    # create console handler with a higher log level
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.ERROR)
+    fileHandler = logging.FileHandler('packager.log')
+    fileHandler.setFormatter(logFormatter)
+    fileHandler.setLevel(logging.DEBUG)
+    rootLogger.addHandler(fileHandler)
 
-    # create formatter and add it to the handlers
-    formatter = logging.Formatter(
-        '%(asctime)s - [%(threadName)-12.12s] -  %(name)-4s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(logFormatter)
+    consoleHandler.setLevel(logging.INFO)
+    rootLogger.addHandler(consoleHandler)
 
-    # add the handlers to the logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    logger.info('logger initialized')
-
+    rootLogger.info('logger initialized')
 
 def get_logger(_logger):
     return logging.getLogger(_logger)
