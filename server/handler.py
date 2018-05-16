@@ -14,9 +14,13 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
 
-        mpm = ManifestPackagingManager()
-        status_code, headers, body = mpm.handle_request(
-            self.path, self.headers)
+        if self.path[-len('.m4s'):] == '.m4s':
+            status_code = 200
+            body = 'received segment request'
+        elif self.path[-len('.mpd'):] == '.mpd':
+            mpm = ManifestPackagingManager()
+            status_code, headers, body = mpm.handle_request(
+                self.path, self.headers)
 
         self.send_response(status_code)
 
