@@ -4,6 +4,7 @@ import pickle
 from utils import singleton
 from fetcher import Fetcher
 from string import Template
+from utils import format_time
 from shaka_adapter import ShakaAdapter
 
 LOG = logger.get_logger(__name__)
@@ -12,9 +13,9 @@ PREPROCESSING_DIR_PATH = '/tmp'
 
 
 class PlaylistInfo:
-    def __init__(self, playlist_uri):
+    def __init__(self, playlist_uri, reference_segment):
         self._playlist_uri = playlist_uri
-        self._program_date_time = None
+        self._reference_segment = reference_segment
         self._manifest = None
         return
 
@@ -23,27 +24,15 @@ class PlaylistInfo:
         return self._playlist_uri
 
     @property
-    def program_date_time(self):
-        return self._program_date_time
-
-    @program_date_time.setter
-    def program_date_time(self, program_date_time):
-        self._program_date_time = program_date_time
-
-    @property
     def reference_segment(self):
         return self._reference_segment
-
-    @reference_segment.setter
-    def reference_segment(self, reference_segment):
-        self._reference_segment = reference_segment
 
     @property
     def manifest(self):
         return self._manifest
 
     @manifest.setter
-    def program_date_time(self, manifest):
+    def manifest(self, manifest):
         self._manifest = manifest
 
     def save_to_disk(self, stream_id, event_id):
@@ -139,12 +128,14 @@ class StreamInfo:
         try:
             with open(pickle_path, 'r') as fd:
                 obj = pickle.load(fd)
-                LOG.debug('loaded preprocessed info for playlist %s PDT %s',
+                LOG.debug('loaded preprocessed info for playlist: %s '
+                          'Reference Segment: %s PDT: %s',
                           obj.playlist_uri,
-                          obj.program_date_time)
+                          obj.reference_segment,
+                          obj.reference_segment.program_date_time)
                 return obj
         except IOError:
-            LOG.debug('picked file %s not found',
+            LOG.debug('pickled file %s not found',
                       pickle_path)
 
         return None
@@ -156,8 +147,10 @@ class StreamInfo:
 
         # use a segment from the middle as reference as
         # it's less likely to get expired when fetching
-        reference_segment = media_playlist.segments[len(
-            media_playlist.segments) // 2]
+        reference_segment = self.find_common_segment(media_playlist)
+        if reference_segment is None:
+            # If no common segment found pick one from the middle of the list
+            media_playlist.segments[len(media_playlist.segments) // 2]
 
         input_segment_path = '%s/%s' % (
             PREPROCESSING_DIR_PATH,
@@ -179,16 +172,13 @@ class StreamInfo:
             manifest_path)
 
         preprocessed_playlist = PlaylistInfo(
-            media_playlist.uri)
+            media_playlist.uri, reference_segment)
 
         with open(manifest_path, 'r') as fd:
             preprocessed_playlist.manifest = fd.read()
             LOG.debug('got manifest %s: %s',
                       manifest_path,
                       preprocessed_playlist.manifest)
-
-        preprocessed_playlist.program_date_time = \
-            reference_segment.program_date_time
 
         preprocessed_playlist.save_to_disk(
             self._stream_id,
@@ -197,6 +187,59 @@ class StreamInfo:
         self.playlists[media_playlist.uri] = \
             preprocessed_playlist
         return preprocessed_playlist
+
+    def find_common_segment(self, playlist):
+        """
+            Function to find the closest segment in time segment to the
+            reference segment.
+            Required to reduce a/v sync issues and seamless switching between
+            renditions.
+        """
+
+        # get the lowest PDT
+        reference_pdt = None
+        for key in self.playlists:
+            if reference_pdt is None:
+                reference_pdt = self.playlists[key].reference_segment.program_date_time
+                continue
+            if reference_pdt < self.playlists[key].reference_segment.program_date_time:
+                reference_pdt = self.playlists[key].reference_segment.program_date_time
+
+        # if searching for first time use the one in the middle of the playlist
+        if reference_pdt is None:
+            # use a segment from the middle as reference as
+            # it's less likely to get expired when fetching
+            return playlist.segments[len(playlist.segments) // 2]
+
+        matching_segment = None
+        try:
+            for idx, segment in enumerate(playlist.segments):
+
+                #LOG.debug('matching %s against %s', segment.program_date_time, reference_pdt)
+                if (segment.program_date_time == reference_pdt):
+                    matching_segment = segment
+                    break
+
+                elif (playlist.segments[idx + 1].program_date_time == reference_pdt):
+                    matching_segment = playlist.segments[idx + 1]
+                    break
+
+                elif (segment.program_date_time > reference_pdt) and \
+                        (playlist.segments[idx + 1].program_date_time > reference_pdt):
+                    matching_segment = segment
+                    break
+        except IndexError:
+            LOG.error('segment matching %s not found in playlist %s.',
+                      reference_pdt,
+                      playlist.uri)
+            return None
+
+        if matching_segment is not None:
+            LOG.info('segment matching PDT %s found in playlist %s PDT %s',
+                     reference_pdt,
+                     playlist.uri,
+                     matching_segment.program_date_time)
+        return matching_segment
 
 
 @singleton
@@ -233,43 +276,5 @@ class PreProcessor:
 
 
 
-
-
-
-
-    # def find_common_segment(self, playlist, reference_segment):
-
-    #     matching_segment = None
-    #     try:
-    #         for segment, idx in enumerate(playlist.segments):
-
-    #             if (segment.program_date_time ==
-    #                     reference_segment.program_date_time):
-    #                 matching_segment = segment
-    #                 break
-
-    #             elif (playlist[idx + 1].program_date_time <=
-    #                     reference_segment.program_date_time):
-    #                 matching_segment = segment
-    #                 break
-
-    #             elif (segment.program_date_time >
-    #                     reference_segment.program_date_time) and \
-    #                 (playlist[idx + 1].program_date_time <
-    #                     reference_segment.program_date_time):
-    #                 matching_segment = segment
-    #                 break
-    #     except IndexError:
-    #         LOG.error('segment matching %s not found in playlist %s.',
-    #                   reference_segment.program_date_time,
-    #                   playlist.uri)
-    #         return None
-
-    #     if matching_segment is not None:
-    #         LOG.info('segment matching PDT %s found in playlist %s PDT %s',
-    #                  reference_segment.program_date_time,
-    #                  playlist.uri,
-    #                  matching_segment.program_date_time)
-    #     return None
 
 

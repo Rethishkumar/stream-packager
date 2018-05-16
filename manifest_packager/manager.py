@@ -17,7 +17,7 @@ class PackagingError(Exception):
 class ManifestPackagingManager:
 
     def __init__(self):
-        self.preprocessor = PreProcessor()
+        #self.preprocessor = PreProcessor()
         pass
 
     def resolve_path(self, path):
@@ -52,7 +52,6 @@ class ManifestPackagingManager:
                                             extension)
         master_playlist = m3u8.loads(
             Fetcher().fetch(master_manifest_url))
-        LOG.debug('master media %s', master_playlist.media)
 
         # Fetch the media playlist and process them
         playlists = {}
@@ -68,7 +67,7 @@ class ManifestPackagingManager:
             playlists[playlist.uri].uri = playlist.uri
 
             # Preprocess the Playlist if not done before
-            self.preprocessor.preprocess_playlist(
+            PreProcessor().preprocess_playlist(
                 stream_id, event_id,
                 base_uri,
                 playlists[playlist.uri])

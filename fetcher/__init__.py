@@ -16,7 +16,7 @@ class Fetcher:
     def fetch(self, url):
 
         content = self.send_request(url)
-        #LOG.debug(content)
+        LOG.debug(content)
         return content
 
     def fetch_and_write(self, url, write_file):
