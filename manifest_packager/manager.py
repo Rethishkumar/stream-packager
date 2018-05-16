@@ -14,6 +14,14 @@ LOG = logger.get_logger(__name__)
 namespace = '{urn:mpeg:dash:schema:mpd:2011}'
 
 
+manifest_headers = {
+    'Content-Type': 'application/dash+xml',
+    'Access-Control-Allow-Headers': 'origin,range,accept-encoding,referer',
+    'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Expose-Headers': 'Server,range,Content-Length,Content-Range,Date'
+}
+
 class PackagingError(Exception):
     pass
 
@@ -70,6 +78,10 @@ class ManifestPackagingManager:
                 Fetcher().fetch(
                     '%s/%s' % (base_uri,
                                playlist.uri)))
+            LOG.debug(
+                'last segment in playlist %s PDT %s',
+                playlists[playlist.uri].segments[-1],
+                playlists[playlist.uri].segments[-1].program_date_time)
 
             playlists[playlist.uri].uri = playlist.uri
 
@@ -82,7 +94,7 @@ class ManifestPackagingManager:
         mpd = self.generate_mpd(
             stream_id, event_id, master_playlist, playlists)
 
-        return (200, None, mpd)
+        return (200, manifest_headers, mpd)
 
     def generate_mpd(self, stream_id, event_id, master_playlist, playlists):
 
@@ -124,10 +136,15 @@ class ManifestPackagingManager:
             for elem_adaptation_set in elem_period.findall(namespace + 'AdaptationSet'):
 
                 elem_baseurl = etree.Element('BaseURL')
-                contentType = elem_adaptation_set.get('contentType')
-
                 elem_baseurl.text = 'http://127.0.0.1:8881/dash-package/live/644624/l2vclip77/ts/'
                 elem_adaptation_set.insert(0, elem_baseurl)
+
+                contentType = elem_adaptation_set.get('contentType')
+
+                elem_role = etree.Element('Role')
+                elem_role.set('schemeIdUri', 'urn:mpeg:dash:role:2011')
+                elem_role.set('value', 'main')
+                elem_adaptation_set.insert(1, elem_role)
 
                 elem_segment_template = elem_adaptation_set.find(
                     namespace + 'Representation').find(namespace + 'SegmentTemplate')
@@ -137,6 +154,7 @@ class ManifestPackagingManager:
                 elem_segment_template.set(
                     'presentationTimeOffset',
                     elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))
+                elem_segment_template.set('duration', str(2 * 90000))
 
                 elem_segment_template.remove(elem_segment_template.find(namespace + 'SegmentTimeline'))
 

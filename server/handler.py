@@ -19,6 +19,10 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.path, self.headers)
 
         self.send_response(status_code)
+
+        for header in headers:
+            self.send_header(header, headers[header])
+
         self.end_headers()
         message = threading.currentThread().getName()
         if body is not None:
