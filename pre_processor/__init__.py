@@ -4,7 +4,7 @@ import pickle
 from utils import singleton
 from fetcher import Fetcher
 from string import Template
-from utils import format_time
+from utils import delete_file
 from shaka_adapter import ShakaAdapter
 
 LOG = logger.get_logger(__name__)
@@ -61,6 +61,12 @@ class StreamInfo:
     @property
     def event_id(self):
         return self._event_id
+
+    def get_manifest(self, playlist_uri):
+        return self.playlists[playlist_uri].manifest
+
+    def get_reference_segment(self, playlist_uri):
+        return self.playlists[playlist_uri].reference_segment
 
     def get_init_path(self, playlist_uri, media_type):
 
@@ -180,6 +186,8 @@ class StreamInfo:
                       manifest_path,
                       preprocessed_playlist.manifest)
 
+        delete_file(manifest_path)
+
         preprocessed_playlist.save_to_disk(
             self._stream_id,
             self._event_id)
@@ -250,17 +258,21 @@ class PreProcessor:
         self.streams = {}
         return
 
+    def stream_key(self, stream_id, event_id):
+        return '%s_%s' % (stream_id, event_id)
+
     def preprocess_playlist(self, stream_id, event_id,
                             base_uri,
                             media_playlist):
 
-        stream_info_str = '%s_%s' % (stream_id, event_id)
-        if stream_info_str in self.streams:
-            stream_info = self.streams[stream_info_str]
+        stream_key = self.stream_key(stream_id, event_id)
+
+        if stream_key in self.streams:
+            stream_info = self.streams[stream_key]
         else:
             stream_info = StreamInfo(
                 stream_id, event_id, base_uri)
-            self.streams[stream_info_str] = stream_info
+            self.streams[stream_key] = stream_info
 
         # Try loading from memory or Disk
         playlist_info = stream_info.get_playlist_info(
@@ -268,10 +280,17 @@ class PreProcessor:
         if playlist_info is not None:
             return
 
-        self.streams[stream_info_str].preprocess_playlist(media_playlist)
+        self.streams[stream_key].preprocess_playlist(media_playlist)
 
         return
 
+    def get_manifest(self, stream_id, event_id, playlist_uri):
+        stream_key = self.stream_key(stream_id, event_id)
+        return self.streams[stream_key].get_manifest(playlist_uri)
+
+    def get_reference_segment(self, stream_id, event_id, playlist_uri):
+        stream_key = self.stream_key(stream_id, event_id)
+        return self.streams[stream_key].get_reference_segment(playlist_uri)
 
 
 

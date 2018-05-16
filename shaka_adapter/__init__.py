@@ -1,6 +1,7 @@
 import logger
 from string import Template
 import subprocess
+from utils import delete_file
 
 LOG = logger.get_logger(__name__)
 

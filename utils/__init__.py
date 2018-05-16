@@ -1,7 +1,8 @@
 import os
-import time
+import re
 import iso8601
 import logger
+from time import strftime
 
 LOG = logger.get_logger(__name__)
 
@@ -23,7 +24,27 @@ def cast_to_time(value):
 
 
 def format_time(value):
-    return value.strftime('%Y-%m-%dT%H:%M:%SZ')
+    return strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def delete_file(filename):
+    os.remove(filename)
+
+
+def cast_to_duration(seconds):
+    return 'PT%dS' % (seconds)
+
+
+def extract_segment_number(segment_url):
+
+    PATTERN = '.*?(?P<segment_number>[\d]+)\.(m4s|ts)'
+    m = re.match(PATTERN, segment_url)
+    if m is None:
+        LOG.warning('invalid segment_url %s', segment_url)
+        raise KeyError('invalid segment_url %s', segment_url)
+    return m.group('segment_number')
+
+
 
 # def cast_to_duration(date_time):
 #     return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(epoch))
