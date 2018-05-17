@@ -3,6 +3,7 @@ import threading
 import BaseHTTPServer
 # import manifest_packager.manager
 from manifest_packager.manager import ManifestPackagingManager
+from segment_packager import SegmentPackager
 
 LOG = logger.get_logger(__name__)
 
@@ -15,8 +16,10 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
 
         if self.path[-len('.m4s'):] == '.m4s':
-            status_code = 200
-            body = 'received segment request'
+            sp = SegmentPackager()
+            status_code, headers, body = sp.handle_request(
+                self.path, self.headers)
+
         elif self.path[-len('.mpd'):] == '.mpd':
             mpm = ManifestPackagingManager()
             status_code, headers, body = mpm.handle_request(

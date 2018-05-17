@@ -34,9 +34,9 @@ class ManifestPackagingManager:
 
     def resolve_path(self, path):
 
-        DASH_URI_PATTERN = '/dash-package/live/(?P<stream_id>[-\w]+)/' \
+        PATTERN = '/dash-package/live/(?P<stream_id>[-\w]+)/' \
         '(?P<event_id>[-\w/]+)/(?P<extension>[-\w/]+)/(?P<filename>[-\w]+).mpd'
-        m = re.match(DASH_URI_PATTERN, path)
+        m = re.match(PATTERN, path)
 
         if m is None:
             LOG.warning('invalid uri %s', path)

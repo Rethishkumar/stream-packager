@@ -20,6 +20,7 @@ class Fetcher:
         return content
 
     def fetch_and_write(self, url, write_file):
+        LOG.debug('fetching %s', url)
         content = self.send_request(url)
         with open(write_file, 'w') as fd:
             fd.write(content)

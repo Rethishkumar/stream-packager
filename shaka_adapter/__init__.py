@@ -1,4 +1,6 @@
+import os
 import logger
+from lxml import etree
 from string import Template
 import subprocess
 from utils import delete_file
@@ -46,3 +48,30 @@ class ShakaAdapter:
         self.execute_cmd(cmd)
 
         return
+
+    def package_segment(self, input_file, media_type):
+
+        #~/shaka/packager-osx 'in=/tmp/master_700_215545.ts,stream=audio,out=/tmp/master_700_215545.mp4' --mpd_output 1.mpd
+        cmd_template = Template("""${packager} 'in=${input_file},stream=${media_type},out=${out_file}' --mpd_output  ${manifest_out_file}""")
+
+        params = {
+            'packager': PACKAGER_PATH,
+            'input_file': input_file,
+            'media_type': media_type,
+            'out_file': '%s.%s.%s' % (input_file, media_type, 'out'),
+            'manifest_out_file': '%s.%s.%s' % (input_file, media_type, 'mpd')}
+
+        cmd = cmd_template.substitute(**params)
+        self.execute_cmd(cmd)
+
+        mpd = etree.parse(params['manifest_out_file'])
+        elem_segmentbase = mpd.find('Period').find('AdaptationSet').find('Representation').find('SegmentBase')
+        byte_range = elem_segmentbase.get('indexRange').split('_')
+        LOG.debug('reading bytes %s to %s', byte_range[0], byte_range[1])
+
+        with open(params['out_file'], 'r') as fd:
+            f.seek(int(byte_range[0]))
+            content = f.read()
+        #os.remove(params['out_file'])
+        #os.remove(params['manifest_out_file'])
+        return content
