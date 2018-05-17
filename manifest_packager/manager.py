@@ -6,7 +6,7 @@ from fetcher import Fetcher
 from fetcher import FetchError
 from lxml import etree
 from pre_processor import PreProcessor
-from utils import cast_to_duration, extract_segment_number, format_time
+from utils import cast_to_duration, extract_segment_number, format_time, cast_to_time
 
 
 LOG = logger.get_logger(__name__)
@@ -121,6 +121,12 @@ class ManifestPackagingManager:
             elem_mpd.set(
                 'publishTime', now_time)
 
+            time_ast = cast_to_time(new_mpd.get('availabilityStartTime'))
+            time_reference_segment_pdt = segment.program_date_time
+
+            # offset_time =
+            # start_number = time_reference_segment_pdt - time_ast
+
             elem_mpd.set(
                 'minBufferTime',
                 cast_to_duration(playlist.target_duration * 2))
@@ -150,7 +156,14 @@ class ManifestPackagingManager:
                     namespace + 'Representation').find(namespace + 'SegmentTemplate')
                 elem_segment_template.set('initialization', '%s/init.m4s' % (contentType))
                 elem_segment_template.set('media', '%s/master_700_$Number$.m4s' % (contentType))
-                elem_segment_template.set('startNumber', extract_segment_number(segment.uri))
+
+                pto = int(elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))
+
+                pto_segments = (pto / int(90000)) // 2
+                startNumber = int(extract_segment_number(segment.uri)) - pto_segments
+                LOG.debug('pto_segments elapsed %d %d start number %d', pto, pto_segments, startNumber)
+
+                elem_segment_template.set('startNumber', str(startNumber))
                 elem_segment_template.set(
                     'presentationTimeOffset',
                     elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))

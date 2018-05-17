@@ -9,7 +9,7 @@ LOG = logger.get_logger(__name__)
 
 
 PACKAGER_PATH = '/Users/rnair/shaka/packager-osx'
-
+namespace = '{urn:mpeg:dash:schema:mpd:2011}'
 
 class ShakaAdapter:
 
@@ -58,20 +58,23 @@ class ShakaAdapter:
             'packager': PACKAGER_PATH,
             'input_file': input_file,
             'media_type': media_type,
-            'out_file': '%s.%s.%s' % (input_file, media_type, 'out'),
+            'out_file': '%s.%s.%s.mp4' % (input_file, media_type, 'out'),
             'manifest_out_file': '%s.%s.%s' % (input_file, media_type, 'mpd')}
 
         cmd = cmd_template.substitute(**params)
         self.execute_cmd(cmd)
 
         mpd = etree.parse(params['manifest_out_file'])
-        elem_segmentbase = mpd.find('Period').find('AdaptationSet').find('Representation').find('SegmentBase')
-        byte_range = elem_segmentbase.get('indexRange').split('_')
+        elem_segmentbase = mpd.find(namespace + 'Period').find(namespace + 'AdaptationSet').find(namespace + 'Representation').find(namespace + 'SegmentBase')
+        byte_range = elem_segmentbase.get('indexRange').split('-')
         LOG.debug('reading bytes %s to %s', byte_range[0], byte_range[1])
 
         with open(params['out_file'], 'r') as fd:
-            f.seek(int(byte_range[0]))
-            content = f.read()
+            fd.seek(int(byte_range[0]) - 1)
+            content = fd.read()
+
+        with open(params['out_file'] + 'm4s', 'w') as fd:
+            fd.write(content)
         #os.remove(params['out_file'])
         #os.remove(params['manifest_out_file'])
         return content

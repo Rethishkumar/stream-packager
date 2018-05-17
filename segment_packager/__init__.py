@@ -1,5 +1,6 @@
 import re
 import logger
+from shaka_adapter import ShakaAdapter
 from fetcher import Fetcher
 
 LOG = logger.get_logger(__name__)
@@ -12,7 +13,7 @@ segment_headers = {
     'Access-Control-Expose-Headers': 'Server,range,Content-Length,Content-Range,Date'
 }
 
-PREPROCESSING_DIR_PATH = '/tmp'
+PREPROCESSING_DIR_PATH = '/tmp/segments'
 
 class SegmentPackager:
 
@@ -63,7 +64,7 @@ class SegmentPackager:
         content = ShakaAdapter().package_segment(
             input_segment_path, media_type)
 
-        return (404, segment_headers, content)
+        return (200, segment_headers, content)
 
     def get_initialization_segment(self, stream_id, event_id, media_type):
 
@@ -72,7 +73,7 @@ class SegmentPackager:
         elif media_type == 'video':
             filename = '644624_l2vclip77_master_700.m3u8_video_init.mp4'
 
-        with open('/tmp/' + filename, 'r') as fd:
+        with open('/tmp/preprocess/' + filename, 'r') as fd:
             content = fd.read()
         return content
 

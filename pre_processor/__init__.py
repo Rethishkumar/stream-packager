@@ -9,7 +9,7 @@ from shaka_adapter import ShakaAdapter
 
 LOG = logger.get_logger(__name__)
 
-PREPROCESSING_DIR_PATH = '/tmp'
+PREPROCESSING_DIR_PATH = '/tmp/preprocess'
 
 
 class PlaylistInfo:
