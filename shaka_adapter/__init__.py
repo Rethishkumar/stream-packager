@@ -51,30 +51,77 @@ class ShakaAdapter:
 
     def package_segment(self, input_file, media_type):
 
+        return self.package_with_template(input_file, media_type)
+
+    def package_static(self, input_file, media_type):
+
         #~/shaka/packager-osx 'in=/tmp/master_700_215545.ts,stream=audio,out=/tmp/master_700_215545.mp4' --mpd_output 1.mpd
-        cmd_template = Template("""${packager} 'in=${input_file},stream=${media_type},out=${out_file}' --mpd_output  ${manifest_out_file}""")
+        cmd_template = Template("""${packager} 'in=${input_file},stream=${media_type},out=${output_file}' --mpd_output  ${manifest_out_file}""")
 
         params = {
             'packager': PACKAGER_PATH,
             'input_file': input_file,
             'media_type': media_type,
-            'out_file': '%s.%s.%s.mp4' % (input_file, media_type, 'out'),
-            'manifest_out_file': '%s.%s.%s' % (input_file, media_type, 'mpd')}
+            'output_file': '%s_self_init.mp4' % (input_file),
+            'manifest_out_file': '%s.static.mpd' % (input_file)}
 
-        cmd = cmd_template.substitute(**params)
+        cmd = cmd_template.safe_substitute(**params)
         self.execute_cmd(cmd)
 
         mpd = etree.parse(params['manifest_out_file'])
-        elem_segmentbase = mpd.find(namespace + 'Period').find(namespace + 'AdaptationSet').find(namespace + 'Representation').find(namespace + 'SegmentBase')
-        byte_range = elem_segmentbase.get('indexRange').split('-')
-        LOG.debug('reading bytes %s to %s', byte_range[0], byte_range[1])
+        elem_SegmentBase = mpd.find(namespace + 'Period').find(
+            namespace + 'AdaptationSet').find(
+            namespace + 'Representation').find(
+            namespace + 'SegmentBase')
 
-        with open(params['out_file'], 'r') as fd:
-            fd.seek(int(byte_range[0]) - 1)
+        start_byte = int(elem_SegmentBase.get('indexRange').split('-')[0])
+        with open(params['output_file'], 'r') as fd:
+            fd.seek(start_byte)
             content = fd.read()
 
-        with open(params['out_file'] + 'm4s', 'w') as fd:
+        with open(params['input_file'] + '.self.initializing.check.m4s', 'w') as fd:
             fd.write(content)
         #os.remove(params['out_file'])
         #os.remove(params['manifest_out_file'])
+        return content
+
+    def package_with_template(self, input_file, media_type):
+
+        #/Users/rnair/shaka/packager-osx 'in=/tmp/segments/master_700_264813_video.ts,stream=video,init_segment=/tmp/segments/master_700_264813_video_init.mp4,segment_template=/tmp//master_700_264813_video_$Number$.m4s' --mpd_output  /tmp/segments/master_700_264813_video.ts.mpd
+        cmd_template = Template("""${packager} 'in=${input_file},stream=${media_type},init_segment=${init_segment},segment_template=${segment_template}' --mpd_output ${manifest_out_file}""")
+        params = {
+            'packager': PACKAGER_PATH,
+            'input_file': input_file,
+            'media_type': media_type,
+            'init_segment': '%s_init.m4s' % (input_file),
+            'segment_template': '%s_$Number$.m4s' % (input_file),
+            'manifest_out_file': '%s.dynamic.mpd' % (input_file)}
+
+        cmd = cmd_template.safe_substitute(**params)
+        self.execute_cmd(cmd)
+
+        mpd = etree.parse(params['manifest_out_file'])
+        elem_SegmentTimeline = mpd.find(namespace + 'Period').find(
+            namespace + 'AdaptationSet').find(
+            namespace + 'Representation').find(
+            namespace + 'SegmentTemplate').find(
+            namespace + 'SegmentTimeline')
+
+        content = None
+        segment_number = 0
+        for elem_s in elem_SegmentTimeline.findall(namespace + 'S'):
+            num_segments = int(elem_s.get('r', 0)) + 1
+            for i in range(num_segments):
+                segment_number += 1
+                filename = Template('%s_$Number.m4s' % (input_file)).safe_substitute({'Number': str(segment_number)})
+                LOG.debug('reading segment %s', filename)
+
+                with open(filename, 'r') as fd:
+                    if content is None:
+                        content = fd.read()
+                        continue
+                    content += fd.read()
+
+        with open(params['input_file'] + '.fragment.check.m4s', 'w') as fd:
+            fd.write(content)
         return content

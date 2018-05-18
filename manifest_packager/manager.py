@@ -159,14 +159,14 @@ class ManifestPackagingManager:
 
                 pto = int(elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))
 
-                pto_segments = (pto / int(90000)) // 2
+                pto_segments = ((pto / 90000) - 2) // 2
                 startNumber = int(extract_segment_number(segment.uri)) - pto_segments
                 LOG.debug('pto_segments elapsed %d %d start number %d', pto, pto_segments, startNumber)
 
                 elem_segment_template.set('startNumber', str(startNumber))
-                elem_segment_template.set(
-                    'presentationTimeOffset',
-                    elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))
+                # elem_segment_template.set(
+                #     'presentationTimeOffset',
+                #     elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))
                 elem_segment_template.set('duration', str(2 * 90000))
 
                 elem_segment_template.remove(elem_segment_template.find(namespace + 'SegmentTimeline'))
