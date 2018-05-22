@@ -138,8 +138,13 @@ class ManifestPackagingManager:
                 cast_to_duration(
                     playlist.target_duration * len(playlist.segments)))
 
+            elem_mpd.set(
+                'suggestedPresentationDelay',
+                'PT%dS' % (3 * 2))
+
             elem_period = new_mpd.find(namespace + 'Period')
-            for elem_adaptation_set in elem_period.findall(namespace + 'AdaptationSet'):
+            for elem_adaptation_set in elem_period.findall(
+                    namespace + 'AdaptationSet'):
 
                 elem_baseurl = etree.Element('BaseURL')
                 elem_baseurl.text = 'http://127.0.0.1:8881/dash-package/live/644624/l2vclip77/ts/'
@@ -154,7 +159,8 @@ class ManifestPackagingManager:
 
                 elem_segment_template = elem_adaptation_set.find(
                     namespace + 'Representation').find(namespace + 'SegmentTemplate')
-                elem_segment_template.set('initialization', '%s/init.m4s' % (contentType))
+                elem_segment_template.attrib.pop('initialization')
+                #elem_segment_template.set('initialization', '%s/init.m4s' % (contentType))
                 elem_segment_template.set('media', '%s/master_700_$Number$.m4s' % (contentType))
 
                 pto = int(elem_segment_template.find(namespace + 'SegmentTimeline').find(namespace + 'S').get('t'))

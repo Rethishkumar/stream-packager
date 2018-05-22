@@ -17,6 +17,7 @@ class PlaylistInfo:
         self._playlist_uri = playlist_uri
         self._reference_segment = reference_segment
         self._manifest = None
+        self._styp_box = {}
         return
 
     @property
@@ -34,6 +35,12 @@ class PlaylistInfo:
     @manifest.setter
     def manifest(self, manifest):
         self._manifest = manifest
+
+    def get_styp_box(self, media_type):
+        return self._styp_box[media_type]
+
+    def set_styp_box(self, styp_box, media_type):
+        self._styp_box[media_type] = styp_box
 
     def save_to_disk(self, stream_id, event_id):
         picke_path = '%s/%s_%s_%s_pickle.dat' % (
@@ -68,6 +75,9 @@ class StreamInfo:
     def get_reference_segment(self, playlist_uri):
         return self.playlists[playlist_uri].reference_segment
 
+    def get_styp_box(self, playlist_uri, media_type):
+        return self.playlists[playlist_uri].get_styp_box(media_type)
+
     def get_init_path(self, playlist_uri, media_type):
 
         template_params = {
@@ -84,19 +94,23 @@ class StreamInfo:
 
         return INIT_TEMPLATE.substitute(**template_params)
 
-    def get_segment_path(self, playlist_uri, media_type):
+    def get_first_segment_path(self, playlist_uri, media_type):
+        return self.get_segment_path(playlist_uri, media_type, str(1))
+
+    def get_segment_path(self, playlist_uri, media_type, number='$Number$'):
 
         template_params = {
             'pre_processing_dir': PREPROCESSING_DIR_PATH,
             'stream_id': self._stream_id,
             'event_id': self._event_id,
             'playlist_uri': playlist_uri,
-            'media_type': media_type
+            'media_type': media_type,
+            'number': number
         }
 
         SEGMENT_TEMPLATE = Template(
             '${pre_processing_dir}/${stream_id}_'
-            '${event_id}_${playlist_uri}_${media_type}_$Number$.m4s')
+            '${event_id}_${playlist_uri}_${media_type}_${number}.m4s')
 
         return SEGMENT_TEMPLATE.safe_substitute(**template_params)
 
@@ -113,6 +127,20 @@ class StreamInfo:
             '${pre_processing_dir}/${stream_id}_'
             '${event_id}_${playlist_uri}.mpd')
         return MANIFEST_TEMPLATE.substitute(**template_params)
+
+    def get_styp_path(self, playlist_uri, media_type):
+        template_params = {
+            'pre_processing_dir': PREPROCESSING_DIR_PATH,
+            'stream_id': self._stream_id,
+            'event_id': self._event_id,
+            'playlist_uri': playlist_uri,
+            'media_type': media_type
+        }
+
+        STYP_PATH_TEMPLATE = Template(
+            '${pre_processing_dir}/${stream_id}_'
+            '${event_id}_${playlist_uri}_${media_type}.styp.mp4')
+        return STYP_PATH_TEMPLATE.substitute(**template_params)
 
     def get_playlist_info(self, playlist_uri):
         if playlist_uri in self.playlists:
@@ -180,6 +208,7 @@ class StreamInfo:
         preprocessed_playlist = PlaylistInfo(
             media_playlist.uri, reference_segment)
 
+        # Read and save the manifest
         with open(manifest_path, 'r') as fd:
             preprocessed_playlist.manifest = fd.read()
             LOG.debug('got manifest %s: %s',
@@ -187,6 +216,13 @@ class StreamInfo:
                       preprocessed_playlist.manifest)
 
         delete_file(manifest_path)
+
+        # Save the styp box
+        for media_type in ['audio, video']:
+            with open(self.get_first_segment_path(
+                    media_playlist.uri, 'audio')) as fd:
+                styp_box = fd.read(36)
+                preprocessed_playlist.set_styp_box(styp_box, media_type)
 
         preprocessed_playlist.save_to_disk(
             self._stream_id,
@@ -292,7 +328,9 @@ class PreProcessor:
         stream_key = self.stream_key(stream_id, event_id)
         return self.streams[stream_key].get_reference_segment(playlist_uri)
 
-
+    def get_styp_box(self, stream_id, event_id, playlist_uri, media_type):
+        stream_key = self.stream_key(stream_id, event_id)
+        return self.streams[stream_key].get_styp_box(playlist_uri, media_type)
 
 
 

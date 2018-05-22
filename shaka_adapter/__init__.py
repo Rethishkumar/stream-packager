@@ -51,7 +51,7 @@ class ShakaAdapter:
 
     def package_segment(self, input_file, media_type):
 
-        return self.package_with_template(input_file, media_type)
+        return self.package_static(input_file, media_type)
 
     def package_static(self, input_file, media_type):
 
@@ -68,6 +68,12 @@ class ShakaAdapter:
         cmd = cmd_template.safe_substitute(**params)
         self.execute_cmd(cmd)
 
+        # Send the whole self initializing segment
+        with open(params['output_file'], 'r') as fd:
+            content = fd.read()
+        return content
+
+
         mpd = etree.parse(params['manifest_out_file'])
         elem_SegmentBase = mpd.find(namespace + 'Period').find(
             namespace + 'AdaptationSet').find(
@@ -79,11 +85,21 @@ class ShakaAdapter:
             fd.seek(start_byte)
             content = fd.read()
 
+
+        if media_type == 'audio':
+            styp_file = '/tmp/preprocess/styp.644624_l2vclip77_master_700.m3u8_audio_1.m4s'
+        elif media_type == 'video':
+            styp_file = '/tmp/preprocess/styp.644624_l2vclip77_master_700.m3u8_audio_1.m4s'
+
+        with open(styp_file) as fd:
+            styp_box = fd.read()
+
         with open(params['input_file'] + '.self.initializing.check.m4s', 'w') as fd:
+            fd.write(styp_box)
             fd.write(content)
         #os.remove(params['out_file'])
         #os.remove(params['manifest_out_file'])
-        return content
+        return styp_box + content
 
     def package_with_template(self, input_file, media_type):
 
