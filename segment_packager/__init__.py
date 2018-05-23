@@ -13,7 +13,7 @@ segment_headers = {
     'Access-Control-Expose-Headers': 'Server,range,Content-Length,Content-Range,Date'
 }
 
-PREPROCESSING_DIR_PATH = '/tmp/segments'
+PREPROCESSING_DIR_PATH = '/Volumes/RAMDisk/segments'
 
 class SegmentPackager:
 

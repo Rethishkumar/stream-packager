@@ -129,7 +129,7 @@ class ManifestPackagingManager:
 
             elem_mpd.set(
                 'minBufferTime',
-                cast_to_duration(playlist.target_duration * 2))
+                cast_to_duration(playlist.target_duration * 3))
             elem_mpd.set(
                 'minimumUpdatePeriod',
                 cast_to_duration(playlist.target_duration))
@@ -137,10 +137,13 @@ class ManifestPackagingManager:
                 'timeShiftBufferDepth',
                 cast_to_duration(
                     playlist.target_duration * len(playlist.segments)))
+            elem_mpd.set(
+                'maxSegmentDuration',
+                cast_to_duration(playlist.target_duration))
 
             elem_mpd.set(
                 'suggestedPresentationDelay',
-                'PT%dS' % (3 * 2))
+                'PT%dS' % (5 * 2))
 
             elem_period = new_mpd.find(namespace + 'Period')
             for elem_adaptation_set in elem_period.findall(
@@ -157,8 +160,14 @@ class ManifestPackagingManager:
                 elem_role.set('value', 'main')
                 elem_adaptation_set.insert(1, elem_role)
 
-                elem_segment_template = elem_adaptation_set.find(
-                    namespace + 'Representation').find(namespace + 'SegmentTemplate')
+                elem_representation = elem_adaptation_set.find(namespace + 'Representation')
+                # if contentType == 'audio':
+                #     elem_representation.set('bandwidth', str(128000))
+                # else:
+                #     elem_representation.set('bandwidth', str(128000))
+
+
+                elem_segment_template = elem_representation.find(namespace + 'SegmentTemplate')
                 elem_segment_template.attrib.pop('initialization')
                 #elem_segment_template.set('initialization', '%s/init.m4s' % (contentType))
                 elem_segment_template.set('media', '%s/master_700_$Number$.m4s' % (contentType))
@@ -188,17 +197,4 @@ class ManifestPackagingManager:
                                          encoding='UTF-8')
             #LOG.info('new_mpd_str \n%s', new_mpd_str)
             return new_mpd_str
-
-
-
-
-
-
-
-
-
-
-
-
-
 
