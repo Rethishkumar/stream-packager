@@ -184,7 +184,7 @@ class StreamInfo:
         reference_segment = self.find_common_segment(media_playlist)
         if reference_segment is None:
             # If no common segment found pick one from the middle of the list
-            media_playlist.segments[len(media_playlist.segments) // 2]
+            media_playlist.segments[len(media_playlist.segments) - 1]
 
         input_segment_path = '%s/%s' % (
             PREPROCESSING_DIR_PATH,
@@ -253,7 +253,7 @@ class StreamInfo:
         if reference_pdt is None:
             # use a segment from the middle as reference as
             # it's less likely to get expired when fetching
-            return playlist.segments[len(playlist.segments) // 2]
+            return playlist.segments[len(playlist.segments) - 1]
 
         matching_segment = None
         try:
